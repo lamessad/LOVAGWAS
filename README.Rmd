@@ -1,0 +1,145 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# LOVAGWAS
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of LOVAGWAS is to adjust GWAS SNP marginal effect sizes to estimate the direct genetic effect using the causal relationship between the outcome and exposures estimated by Multivariable Mendelian Randomization approach
+
+## Installation
+
+You can install the development version of LOVAGWAS from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("pak")
+pak::pak("lamessad/LOVAGWAS")
+```
+
+## Preparing Input Data
+Before applying **`LOVAGWAS`**, all GWAS summary statistics (exposures and outcome) must be:
+**1. Harmonized to the same reference panel (e.g., 1000 Genomes EUR).
+**2. Restricted to common SNPs across all datasets.
+Step 1. Harmonize each summary statistics
+
+``` r
+# # Clear workspace
+# rm(list = ls())
+# # 1. Read GWAS summary data
+# data <- read.table("bmi_summary.txt", header = TRUE)
+# # 2. Read reference panel (1000G EUR BIM file)
+# bim <- read.table("/data/alh-admlda/reference/EUR.bim", header = FALSE)
+# colnames(bim) <- c("CHR","SNP","cM","BP","A1","A2")
+# # 3. Standardize GWAS column names
+# colnames(data) <- c("CHR","BP","SNP","A1","A2","b","se","lp","N","AF")
+# # 4. Keep SNPs present in both GWAS and reference
+# commonsnps <- intersect(bim$SNP, data$SNP)
+# data <- data[match(commonsnps, data$SNP), ]
+# bim  <- bim[match(commonsnps, bim$SNP), ]
+# 
+# # 5. Check allele alignment
+# allele_ind <- (data$A1 == bim$A1 & data$A2 == bim$A2) |
+#               (data$A2 == bim$A1 & data$A1 == bim$A2)
+# data <- data[allele_ind, ]
+# bim  <- bim[allele_ind, ]
+# 
+# # 6. Align effect alleles to reference
+# flip <- data$A1 == bim$A2
+# data$b[flip] <- -data$b[flip]
+# data$A1 <- bim$A1
+# data$A2 <- bim$A2
+# 
+# # 7. Save harmonized file
+# write.table(data, file = "bmi_harmonized.txt", quote = FALSE, -->
+#             sep = "\t", row.names = FALSE)
+```
+Repeat these steps for all exposures and the outcome
+
+Step 2. Find common SNPs across all harmonized summary statistics
+
+```r
+# #Exposure
+# betaX_files <- c("tg_harmonized.txt", "ldl_harmonized.txt", 
+#                  "hdl_harmonized.txt", "bmi_harmonized.txt",
+#                  "ht_harmonized.txt", "fg_harmonized.txt",
+#                  "sbp_harmonized.txt", "dbp_harmonized.txt")
+# 
+# # Outcome 
+# betaY_file <- "cad_harmonized.txt"
+# 
+# # Read all harmonized files
+# all_files <- c(betaX_files, betaY_file)
+# gwas_list <- lapply(all_files, function(f) read.table(f, header = TRUE))
+# # Identify common SNPs
+# common_snps <- Reduce(intersect, lapply(gwas_list, function(df) df$SNP))
+# cat("Number of common SNPs:", length(common_snps), "\n")
+# # Subset each dataset to common SNPs (same order)
+# gwas_list <- lapply(gwas_list, function(df) {
+#   df[match(common_snps, df$SNP), ]
+# })
+
+```
+Step 3. Extract inputs based on common SNps
+
+```r
+# #Outcome (CAD)
+# cad <- gwas_list[[length(gwas_list)]]
+# betaY   <- cad$b
+# betaYse <- cad$se
+# 
+# # Exposures
+# betaX   <- do.call(cbind, lapply(gwas_list[1:length(betaX_files)], function(df) df$b))
+# betaXse <- do.call(cbind, lapply(gwas_list[1:length(betaX_files)], function(df) df$se))
+# 
+# # SNP info (aligned)
+# snp_info <- cad[, c("SNP","CHR","BP","A1","A2")]
+
+```
+## Example
+
+Here is an example demonstrating how to apply LOVAGWAS methods to estimate direct genetic effect of a SNP.
+
+
+```{r example}
+library(LOVAGWAS)
+## load the example data created by simulation 
+data(betaX)
+data(betaXse)
+data(betaY)
+data(betaYse)
+data(snp_info)
+dim(betaX)      
+dim(betaXse)    
+length(betaY)   
+length(betaYse) 
+head(snp_info) 
+res <- lova_gwas(
+    betaY = betaY,
+    betaX = betaX,
+    betaYse = betaYse,
+    tau_t = c(0.30, -0.10, 0.03),  # example causal estimates
+    ny = 50000, #outcome GWAS sample size
+    snp_info = snp_info,
+    plot_manhattan = TRUE
+  )
+  head(res)
+  
+```
+
+
+## Contact
+
+Please contact Lamessa Amente (lamessa.amente@mymail.unisa.edu.au) or Hong Lee (hong.lee@unisa.edu.au) if you have any queries.
