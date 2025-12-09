@@ -2,57 +2,89 @@
 % Please edit documentation in R/lova_gwas.R
 \name{lova_gwas}
 \alias{lova_gwas}
-\title{Compute direct genetic effect (MVMR-LOVA–adjusted) GWAS effects with optional Manhattan plot}
+\title{LOVAGWAS: a locus direct effect estimation}
 \usage{
 lova_gwas(
-  betaY,
+  gwasY,
   betaX,
-  betaYse,
   tau_t,
   pcor = NULL,
   ny,
-  snp_info,
   plot_manhattan = FALSE,
   save_path = NULL
 )
 }
 \arguments{
-\item{betaY}{Numeric vector of outcome SNP effect sizes (length = n_snps).}
+\item{gwasY}{Data frame of outcome GWAS summary statistics.
+Must contain SNP IDs and effect estimates (any variant of b/beta/logodds etc.).
+For Manhattan plotting, must also contain columns for chromosome (`CHR`)
+and base position (`BP`).}
 
-\item{betaX}{Numeric matrix of exposure SNP effect sizes (n_snps x n_exposures).}
+\item{betaX}{Data frame of exposure SNP effects: first column \code{SNP},
+remaining columns are exposures.}
 
-\item{betaYse}{Numeric vector of standard errors for \code{betaY} (length = n_snps).}
+\item{tau_t}{Numeric vector of causal estimates for exposures
+(length must match the number of exposure columns in \code{betaX} minus one).}
 
-\item{tau_t}{Numeric vector of causal effect estimates for exposures (length = n_exposures).}
+\item{pcor}{Optional correlation matrix with outcome in the first row/column
+and exposures following. If \code{NULL}, it is computed from
+\code{cbind(b, betaX_exposures)}.}
 
-\item{pcor}{Optional numeric correlation matrix with outcome in the first row/column
-and exposures following. If \code{NULL}, correlations are computed from \code{cbind(betaY, betaX)}.}
+\item{ny}{Numeric; outcome GWAS sample size (must be > 0).}
 
-\item{ny}{Numeric scalar, sample size of the outcome GWAS (must be > 0).}
+\item{plot_manhattan}{Logical; if \code{TRUE}, generates Manhattan plots.}
 
-\item{snp_info}{Data frame with SNP information, aligned with \code{betaY}.
-Must contain columns \code{SNP}, \code{CHR}, \code{BP}, \code{A1}, \code{A2}
-if \code{plot_manhattan = TRUE}.}
-
-\item{plot_manhattan}{Logical; if \code{TRUE}, generate Manhattan plots of original
-and LOVA-adjusted p-values (default = \code{FALSE}).}
-
-\item{save_path}{Optional file path to save the Manhattan plots as PNG. If \code{NULL},
-plots are displayed to the active device.}
+\item{save_path}{Optional file path to save the plots as PNG; if \code{NULL},
+plots are displayed to the active graphics device.}
 }
 \value{
-A data frame with, for each SNP:
-  \itemize{
-    \item \code{b_c} – MVMR-LOVA–adjusted effect size (direct genetic effect)
-    \item \code{se_c} – adjusted standard error
-    \item \code{z_c} – adjusted z-score
-    \item \code{pval_c} – adjusted p-value
-    \item \code{pval} – original p-value
-    \item all columns from \code{snp_info}
+A data frame containing:
+  \describe{
+    \item{b_c}{LOVAGWAS SNP effect (direct effect)}
+    \item{se_c}{Adjusted standard error}
+    \item{z_c}{Adjusted z-score}
+    \item{pval_c}{Adjusted p-value}
+    \item{missing_count}{Number of missing exposure effects replaced by 0}
+    \item{missing_index}{Indices of missing exposures}
   }
 }
 \description{
-Adjust GWAS SNP effect sizes to estimate the direct genetic effect using
-the Multivariable Mendelian Randomization Latent Outcome Variable Approach (MVMR-LOVA).
-Optionally, generate Manhattan plots of the original and adjusted results via **qqman**.
+Adjust GWAS SNP effects to estimate the direct genetic effect
+using the Multivariable Mendelian Randomization Latent Outcome Variable
+Approach (MVMR-LOVA).
+Automatically detects column names such as `b`, `beta`, `BETA`, `effect`,
+`logodds`, and their SE variants, as well as `SNP`, `CHR`, `BP`, `A1`, `A2`.
+Optionally generates Manhattan plots (original vs adjusted) using qqman.
+}
+\details{
+Direct effects are computed as \eqn{b_c = b_Y - B_X \tau_t}.
+Standard errors use \eqn{se_c^2 = se_Y^2 + ||\tau_t||^2 / n_y - \mathrm{cov\_tmp}/n_y},
+where \code{cov_tmp} aggregates outcome–exposure and exposure–exposure
+correlation terms.
+}
+\examples{
+# Simulated example with 100 SNPs and 2 exposures
+set.seed(1)
+n_snps <- 100
+gwasY <- data.frame(
+  SNP = paste0("rs", 1:n_snps),
+  CHR = sample(1:22, n_snps, TRUE),
+  BP  = sample(1e6:2e6, n_snps),
+  A1  = sample(c("A", "C", "G", "T"), n_snps, TRUE),
+  A2  = sample(c("A", "C", "G", "T"), n_snps, TRUE),
+  BETA = rnorm(n_snps, 0, 0.05),
+  SE   = runif(n_snps, 0.01, 0.03)
+)
+
+betaX <- data.frame(
+  SNP = gwasY$SNP,
+  exp1 = rnorm(n_snps, 0, 0.05),
+  exp2 = rnorm(n_snps, 0, 0.05)
+)
+
+tau_t <- c(0.1, 0.2)
+
+res <- lova_gwas(gwasY, betaX, tau_t, ny = 50000)
+head(res)
+
 }
