@@ -198,6 +198,14 @@ head(res)
 #> 5 0.01386652  4.4433835 8.855513e-06             1             1
 #> 6 0.01871325 -3.5760367 3.488426e-04             0          <NA>
 ```
+### Output columns (what they mean)
+- `b`, `se`, `pval`: Original outcome GWAS marginal SNP effect, standard error, and p-value.
+- `b_c`: LOVA-adjusted (direct) SNP effect on the outcome after removing mediation through the exposure set using `tau_t` and `betaX`.
+- `se_c`, `z_c`, `pval_c`: Standard error, z-score, and p-value for the adjusted direct effect `b_c`.
+- `missing_count`: Number of exposures in `betaX` that are missing (`NA`) for that SNP.
+- `missing_index`: Indices of exposures missing for that SNP.
+
+**Interpretation:** `pval_c` is the primary significance measure for the exposure-set–direct association (direct with respect to the exposures included in `betaX`, not necessarily biologically “unmediated” in an absolute sense).
 
 ## Contact
 
